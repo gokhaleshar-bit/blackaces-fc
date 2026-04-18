@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Black Aces — Match Voting</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --bg:#0a0a0f;--surface:#13131a;--surface2:#1c1c27;--border:#2a2a3a;
+    --accent:#00e5ff;--accent2:#7c3aed;--green:#22c55e;--red:#ef4444;
+    --yellow:#f59e0b;--text:#f0f0f5;--muted:#6b7280;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--bg);color:var(--text);font-family:'Barlow',sans-serif;min-height:100vh;padding-bottom:60px;}
+  .noise{position:fixed;inset:0;pointer-events:none;z-index:0;opacity:.4;}
+  header{position:relative;z-index:1;border-bottom:1px solid var(--border);padding:20px 24px;display:flex;align-items:center;gap:14px;background:linear-gradient(180deg,#13131a 0%,transparent 100%);}
+  .badge{width:44px;height:44px;border-radius:10px;background:linear-gradient(135deg,var(--accent2),var(--accent));display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:18px;color:#fff;flex-shrink:0;}
+  header h1{font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:24px;letter-spacing:.05em;text-transform:uppercase;}
+  header p{font-size:13px;color:var(--muted);margin-top:2px;}
+  .container{max-width:600px;margin:0 auto;padding:24px 16px;position:relative;z-index:1;}
+  .steps{display:flex;gap:8px;margin-bottom:28px;}
+  .step{flex:1;height:3px;border-radius:2px;background:var(--border);transition:background .3s;}
+  .step.active{background:var(--accent);}
+  .step.done{background:var(--accent2);}
+  .section-title{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:11px;letter-spacing:.15em;text-transform:uppercase;color:var(--muted);margin-bottom:14px;}
+  .voter-select{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:28px;}
+  .voter-btn{padding:12px 14px;border-radius:10px;background:var(--surface);border:1.5px solid var(--border);color:var(--text);font-family:'Barlow',sans-serif;font-size:14px;font-weight:500;cursor:pointer;transition:all .15s;text-align:left;}
+  .voter-btn:hover{border-color:var(--accent);background:#1e1e2e;}
+  .voter-btn.selected{border-color:var(--accent);background:rgba(0,229,255,.08);color:var(--accent);}
+  .result-row{display:flex;gap:10px;margin-bottom:28px;}
+  .result-btn{flex:1;padding:14px;border-radius:10px;border:1.5px solid var(--border);background:var(--surface);color:var(--text);font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:15px;letter-spacing:.05em;cursor:pointer;transition:all .15s;text-align:center;text-transform:uppercase;}
+  .result-btn:hover{border-color:var(--accent);}
+  .result-btn.win{border-color:var(--green);background:rgba(34,197,94,.1);color:var(--green);}
+  .result-btn.loss{border-color:var(--red);background:rgba(239,68,68,.1);color:var(--red);}
+  .result-btn.draw{border-color:var(--yellow);background:rgba(245,158,11,.1);color:var(--yellow);}
+  .players-list{display:flex;flex-direction:column;gap:12px;margin-bottom:28px;}
+  .player-card{background:var(--surface);border:1.5px solid var(--border);border-radius:12px;padding:14px 16px;transition:border-color .2s;animation:slideIn .3s ease both;}
+  .player-card.rated{border-color:var(--accent2);}
+  @keyframes slideIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+  .player-name{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:17px;letter-spacing:.03em;text-transform:uppercase;margin-bottom:10px;display:flex;align-items:center;gap:8px;}
+  .player-pos{font-size:10px;font-weight:600;letter-spacing:.1em;padding:2px 7px;border-radius:4px;background:var(--surface2);color:var(--muted);font-family:'Barlow',sans-serif;text-transform:uppercase;}
+  .stars{display:flex;gap:6px;}
+  .star{width:36px;height:36px;border-radius:8px;background:var(--surface2);border:1.5px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;transition:all .15s;color:var(--muted);}
+  .star:hover,.star.active{background:rgba(245,158,11,.15);border-color:var(--yellow);color:var(--yellow);transform:scale(1.1);}
+  .star-label{font-size:11px;color:var(--muted);margin-top:6px;height:14px;}
+  .played-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:28px;}
+  .played-btn{padding:10px 12px;border-radius:9px;border:1.5px solid var(--border);background:var(--surface);color:var(--text);font-size:13px;font-weight:500;cursor:pointer;transition:all .15s;text-align:left;display:flex;align-items:center;gap:8px;}
+  .played-btn .dot{width:8px;height:8px;border-radius:50%;background:var(--border);flex-shrink:0;transition:background .15s;}
+  .played-btn.active{border-color:var(--green);background:rgba(34,197,94,.07);}
+  .played-btn.active .dot{background:var(--green);}
+  .played-btn.self-excluded{opacity:.4;pointer-events:none;}
+  .submit-btn{width:100%;padding:16px;border-radius:12px;border:none;background:linear-gradient(135deg,var(--accent2),var(--accent));color:#fff;font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:18px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;transition:opacity .2s,transform .1s;}
+  .submit-btn:hover{opacity:.9;transform:translateY(-1px);}
+  .submit-btn:disabled{opacity:.4;cursor:not-allowed;transform:none;}
+  .progress-bar{height:2px;background:var(--border);border-radius:2px;margin-bottom:28px;}
+  .progress-fill{height:100%;border-radius:2px;background:linear-gradient(90deg,var(--accent2),var(--accent));transition:width .4s ease;}
+  .success{text-align:center;padding:60px 20px;display:none;flex-direction:column;align-items:center;gap:16px;}
+  .success.show{display:flex;}
+  .success-icon{font-size:64px;}
+  .success h2{font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:32px;text-transform:uppercase;}
+  .success p{color:var(--muted);font-size:15px;}
+  .divider{border:none;border-top:1px solid var(--border);margin:4px 0 24px;}
+  .already-voted{background:rgba(0,229,255,.06);border:1.5px solid var(--accent);border-radius:10px;padding:14px 16px;font-size:13px;color:var(--accent);margin-bottom:24px;display:none;}
+  .date-chip{display:inline-flex;align-items:center;gap:6px;background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:4px 12px;font-size:12px;color:var(--muted);margin-bottom:20px;}
+</style>
+</head>
+<body>
+<div class="noise"></div>
+<header>
+  <div class="badge">BA</div>
+  <div>
+    <h1>Black Aces</h1>
+    <p>Weekly Match Rating</p>
+  </div>
+</header>
+
+<div class="container" id="mainForm">
+  <div class="date-chip" id="dateChip">📅 Loading...</div>
+  <div class="steps">
+    <div class="step active" id="s1"></div>
+    <div class="step" id="s2"></div>
+    <div class="step" id="s3"></div>
+    <div class="step" id="s4"></div>
+  </div>
+  <div class="already-voted" id="alreadyVoted">✓ You've already voted this week. See you next Saturday!</div>
+
+  <!-- STEP 1 -->
+  <div id="step1">
+    <div class="section-title">Step 1 — Who are you?</div>
+    <div class="voter-select" id="voterGrid"></div>
+  </div>
+
+  <!-- STEP 2 -->
+  <div id="step2" style="display:none">
+    <div class="section-title">Step 2 — Who played today?</div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:14px;">Select everyone on the pitch (you're auto-included)</p>
+    <div class="played-grid" id="playedGrid"></div>
+    <button class="submit-btn" id="confirmPlayers" onclick="goToStep3()" style="margin-bottom:24px" disabled>Confirm Squad →</button>
+  </div>
+
+  <!-- STEP 3 -->
+  <div id="step3" style="display:none">
+    <div class="section-title">Step 3 — Rate the players</div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:6px;">Don't rate yourself. Be honest.</p>
+    <div class="progress-bar"><div class="progress-fill" id="ratingProgress" style="width:0%"></div></div>
+    <div class="players-list" id="playersList"></div>
+  </div>
+
+  <!-- STEP 4 -->
+  <div id="step4" style="display:none">
+    <div class="section-title">Step 4 — Match result</div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:14px;">How did your team do?</p>
+    <div class="result-row">
+      <button class="result-btn" onclick="selectResult('Win',this)">⚽ We Won</button>
+      <button class="result-btn" onclick="selectResult('Loss',this)">❌ We Lost</button>
+      <button class="result-btn" onclick="selectResult('Draw',this)">🤝 Draw</button>
+    </div>
+    <hr class="divider"/>
+    <button class="submit-btn" id="submitBtn" onclick="submitVotes()" disabled>Submit Votes ✓</button>
+  </div>
+</div>
+
+<div class="container success" id="successScreen">
+  <div class="success-icon">⚽</div>
+  <h2>Votes Submitted!</h2>
+  <p>Thanks for rating. Check the dashboard on Sunday for this week's standings.</p>
+</div>
+
+<script>
+// ============================================================
+// ✅ PRE-FILLED — Shardul, Swakeet, Kavan
+// Only change SCRIPT_URL — paste your Apps Script URL below
+// ============================================================
+const SCRIPT_URL = "PASTE_YOUR_SCRIPT_URL_HERE";
+
+const PLAYERS = [
+  { name: "Shardul", pos: "MID" },
+  { name: "Swakeet", pos: "DEF" },
+  { name: "Kavan",   pos: "FWD" },
+];
+
+const STAR_LABELS = ["","Poor","Below Avg","Average","Good","Outstanding"];
+
+let currentVoter = null;
+let activePlayers = [];
+let ratings = {};
+let matchResult = null;
+
+function init() {
+  document.getElementById("dateChip").textContent =
+    "📅 " + new Date().toLocaleDateString("en-IN",{weekday:"long",day:"numeric",month:"long",year:"numeric"});
+  const grid = document.getElementById("voterGrid");
+  PLAYERS.forEach((p, i) => {
+    const btn = document.createElement("button");
+    btn.className = "voter-btn";
+    btn.textContent = p.name;
+    btn.onclick = () => selectVoter(i, btn);
+    grid.appendChild(btn);
+  });
+  if (localStorage.getItem("voted_" + getWeekKey())) {
+    document.getElementById("alreadyVoted").style.display = "block";
+  }
+}
+
+function getWeekKey() {
+  const d = new Date(), jan1 = new Date(d.getFullYear(),0,1);
+  return d.getFullYear() + "_w" + Math.ceil(((d-jan1)/86400000+jan1.getDay()+1)/7);
+}
+
+function selectVoter(idx, btn) {
+  document.querySelectorAll(".voter-btn").forEach(b=>b.classList.remove("selected"));
+  btn.classList.add("selected");
+  currentVoter = idx;
+  updateStep(1);
+  setTimeout(goToStep2, 400);
+}
+
+function goToStep2() {
+  document.getElementById("step1").style.display = "none";
+  document.getElementById("step2").style.display = "block";
+  updateStep(2);
+  const grid = document.getElementById("playedGrid");
+  grid.innerHTML = "";
+  activePlayers = [];
+  PLAYERS.forEach((p, i) => {
+    const btn = document.createElement("button");
+    btn.className = "played-btn" + (i === currentVoter ? " active self-excluded" : "");
+    btn.innerHTML = `<span class="dot"></span>${p.name}`;
+    if (i === currentVoter) {
+      activePlayers.push(i);
+    } else {
+      btn.onclick = () => togglePlayer(i, btn);
+    }
+    grid.appendChild(btn);
+  });
+  checkConfirm();
+}
+
+function togglePlayer(idx, btn) {
+  btn.classList.toggle("active");
+  if (btn.classList.contains("active")) activePlayers.push(idx);
+  else activePlayers = activePlayers.filter(i=>i!==idx);
+  checkConfirm();
+}
+
+function checkConfirm() {
+  document.getElementById("confirmPlayers").disabled = activePlayers.filter(i=>i!==currentVoter).length < 1;
+}
+
+function goToStep3() {
+  document.getElementById("step2").style.display = "none";
+  document.getElementById("step3").style.display = "block";
+  updateStep(3);
+  const list = document.getElementById("playersList");
+  list.innerHTML = "";
+  ratings = {};
+  activePlayers.filter(i=>i!==currentVoter).forEach((idx, ci) => {
+    const p = PLAYERS[idx];
+    const card = document.createElement("div");
+    card.className = "player-card";
+    card.style.animationDelay = (ci*0.05)+"s";
+    card.innerHTML = `
+      <div class="player-name">${p.name}<span class="player-pos">${p.pos}</span></div>
+      <div class="stars" id="stars_${idx}">
+        ${[1,2,3,4,5].map(v=>`<div class="star" onclick="rate(${idx},${v},this)">${v}</div>`).join("")}
+      </div>
+      <div class="star-label" id="label_${idx}">Tap to rate</div>`;
+    list.appendChild(card);
+  });
+  updateProgress();
+}
+
+function rate(playerIdx, value, star) {
+  ratings[playerIdx] = value;
+  document.querySelectorAll(`#stars_${playerIdx} .star`).forEach((s,i)=>s.classList.toggle("active",i<value));
+  document.getElementById("label_"+playerIdx).textContent = STAR_LABELS[value];
+  star.closest(".player-card").classList.add("rated");
+  updateProgress();
+  const toRate = activePlayers.filter(i=>i!==currentVoter);
+  if (Object.keys(ratings).length === toRate.length) setTimeout(goToStep4, 600);
+}
+
+function updateProgress() {
+  const toRate = activePlayers.filter(i=>i!==currentVoter);
+  const pct = toRate.length ? (Object.keys(ratings).length/toRate.length)*100 : 0;
+  document.getElementById("ratingProgress").style.width = pct+"%";
+}
+
+function goToStep4() {
+  document.getElementById("step3").style.display = "none";
+  document.getElementById("step4").style.display = "block";
+  updateStep(4);
+}
+
+function selectResult(result, btn) {
+  matchResult = result;
+  document.querySelectorAll(".result-btn").forEach(b=>b.classList.remove("win","loss","draw"));
+  if (result==="Win") btn.classList.add("win");
+  else if (result==="Loss") btn.classList.add("loss");
+  else btn.classList.add("draw");
+  document.getElementById("submitBtn").disabled = false;
+}
+
+async function submitVotes() {
+  document.getElementById("submitBtn").disabled = true;
+  document.getElementById("submitBtn").textContent = "Submitting...";
+  const payload = {
+    voter: PLAYERS[currentVoter].name,
+    date: new Date().toISOString().split("T")[0],
+    weekKey: getWeekKey(),
+    matchResult,
+    activePlayers: activePlayers.map(i=>PLAYERS[i].name),
+    ratings: Object.fromEntries(Object.entries(ratings).map(([idx,val])=>[PLAYERS[idx].name,val]))
+  };
+  try {
+    await fetch(SCRIPT_URL,{method:"POST",mode:"no-cors",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
+  } catch(e){}
+  localStorage.setItem("voted_"+getWeekKey(),"1");
+  document.getElementById("mainForm").style.display="none";
+  document.getElementById("successScreen").classList.add("show");
+}
+
+function updateStep(n) {
+  for(let i=1;i<=4;i++){
+    const el=document.getElementById("s"+i);
+    el.className="step"+(i<n?" done":i===n?" active":"");
+  }
+}
+
+init();
+</script>
+</body>
+</html>
